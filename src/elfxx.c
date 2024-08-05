@@ -142,7 +142,7 @@ elf_w (lookup_symbol_from_dynamic) (unw_addr_space_t as UNUSED,
       }
     else if (phdr[i].p_type == PT_DYNAMIC)
       {
-        dyn = (Elf_W (Dyn) *) ((char *)ei->image + phdr[i].p_offset);
+        dyn = (Elf_W (Dyn) *) elf_w (get_program_segment) (ei, &phdr[i], NULL);
         break;
       }
 
@@ -534,6 +534,7 @@ elf_w (extract_minidebuginfo) (struct elf_image *ei, struct elf_image *mdi)
     .free   = xz_free,
     .opaque = &allocator_data
   };
+  memset (&allocator_data, 0, sizeof(allocator_data));
 
   shdr = elf_w (find_section) (ei, ".gnu_debugdata");
   if (!shdr)
@@ -811,18 +812,17 @@ elf_w (find_build_id_path) (const struct elf_image *ei, char *path, unsigned pat
       if (phdr->p_type != PT_NOTE)
         continue;
 
-      notes = ((const uint8_t *) ehdr) + phdr->p_offset;
-      notes_end = notes + phdr->p_memsz;
+      notes = elf_w (get_program_segment) (ei, phdr, &notes_end);
 
       while(notes < notes_end)
         {
           const char prefix[] = "/usr/lib/debug/.build-id/";
 
           /* See "man 5 elf" for notes about alignment in Nhdr */
-          const Elf_W(Nhdr) *nhdr = (const ElfW(Nhdr) *) notes;
-          const ElfW(Word) namesz = nhdr->n_namesz;
-          const ElfW(Word) descsz = nhdr->n_descsz;
-          const ElfW(Word) nameasz = UNW_ALIGN(namesz, 4); /* Aligned size */
+          const Elf_W(Nhdr) *nhdr = (const Elf_W(Nhdr) *) notes;
+          const Elf_W(Word) namesz = nhdr->n_namesz;
+          const Elf_W(Word) descsz = nhdr->n_descsz;
+          const Elf_W(Word) nameasz = UNW_ALIGN(namesz, 4); /* Aligned size */
           const char *name = (const char *) (nhdr + 1);
           const uint8_t *desc = (const uint8_t *) name + nameasz;
           unsigned j;
